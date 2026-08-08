@@ -1,11 +1,9 @@
+```python
 import json
-from pathlib import Path
-
 import numpy as np
 import streamlit as st
 import tensorflow as tf
 from PIL import Image
-
 
 # ==========================================
 # 1. Page Settings
@@ -17,29 +15,32 @@ st.set_page_config(
     layout="centered"
 )
 
-
 # ==========================================
 # 2. File Paths
 # ==========================================
 
-MODEL_PATH = "bahraini_currency_model.keras"
+MODEL_PATH = "bahraini_currency_model.tflite"
 CLASS_NAMES_PATH = "class_names.json"
 
 IMG_SIZE = (224, 224)
 
-
 # ==========================================
-# 3. Load Model
+# 3. Load TFLite Model
 # ==========================================
 
 @st.cache_resource
 def load_model():
 
-    model = tf.keras.models.load_model(
-        MODEL_PATH
+    interpreter = tf.lite.Interpreter(
+        model_path=MODEL_PATH
     )
 
-    return model
+    interpreter.allocate_tensors()
+
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+
+    return interpreter, input_details, output_details
 
 
 # ==========================================
@@ -66,7 +67,7 @@ def load_class_names():
 
 try:
 
-    model = load_model()
+    interpreter, input_details, output_details = load_model()
     class_names = load_class_names()
 
 except Exception as e:
@@ -104,11 +105,61 @@ def predict_currency(image):
         axis=0
     )
 
-    # Prediction
-    probabilities = model.predict(
-        image_array,
-        verbose=0
+    # Get input information
+    input_index = input_details[0]["index"]
+    input_dtype = input_details[0]["dtype"]
+
+    # Handle quantized models if needed
+    if input_dtype == np.uint8:
+
+        input_scale, input_zero_point = input_details[0]["quantization"]
+
+        image_array = (
+            image_array / input_scale
+        ) + input_zero_point
+
+        image_array = image_array.astype(
+            np.uint8
+        )
+
+    else:
+
+        image_array = image_array.astype(
+            input_dtype
+        )
+
+    # Set input tensor
+    interpreter.set_tensor(
+        input_index,
+        image_array
+    )
+
+    # Run prediction
+    interpreter.invoke()
+
+    # Get output
+    output_index = output_details[0]["index"]
+
+    probabilities = interpreter.get_tensor(
+        output_index
     )[0]
+
+    # Handle quantized output if needed
+    output_dtype = output_details[0]["dtype"]
+
+    if output_dtype == np.uint8:
+
+        output_scale, output_zero_point = output_details[0]["quantization"]
+
+        probabilities = (
+            probabilities.astype(np.float32)
+            - output_zero_point
+        ) * output_scale
+
+    # Make sure probabilities are float
+    probabilities = probabilities.astype(
+        np.float32
+    )
 
     # Get predicted class
     predicted_index = np.argmax(
@@ -208,7 +259,6 @@ if uploaded_file is not None:
             f"{confidence:.2%}"
         )
 
-
         # ==================================
         # Probability Results
         # ==================================
@@ -232,7 +282,6 @@ if uploaded_file is not None:
         st.bar_chart(
             probability_data
         )
-
 
         # ==================================
         # Detailed Results
@@ -265,3 +314,4 @@ st.divider()
 st.caption(
     "Bahraini Currency Classification using CNN"
 )
+```
