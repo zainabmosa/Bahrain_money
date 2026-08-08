@@ -1,11 +1,10 @@
+```python
 import streamlit as st
 import numpy as np
+import tensorflow as tf
 from PIL import Image
 import json
 import os
-
-# TFLite runtime
-from tflite_runtime.interpreter import Interpreter
 
 
 # ==========================================
@@ -83,7 +82,7 @@ st.markdown(
 @st.cache_resource
 def load_currency_model():
 
-    interpreter = Interpreter(
+    interpreter = tf.lite.Interpreter(
         model_path=MODEL_PATH
     )
 
@@ -119,7 +118,7 @@ def load_class_names():
 
 
 # ==========================================
-# Load Model + Classes
+# Load Model
 # ==========================================
 
 try:
@@ -130,7 +129,7 @@ try:
 except Exception as e:
 
     st.error(
-        "Error loading the model."
+        "Error loading the model or class names."
     )
 
     st.write(e)
@@ -147,10 +146,10 @@ def predict_currency(image):
     # Convert image to RGB
     image = image.convert("RGB")
 
-    # Resize
+    # Resize image
     image = image.resize(IMG_SIZE)
 
-    # Convert to NumPy
+    # Convert image to NumPy array
     img_array = np.array(
         image,
         dtype=np.float32
@@ -162,7 +161,7 @@ def predict_currency(image):
         axis=0
     )
 
-    # Get input details
+    # Get model information
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
 
@@ -171,7 +170,11 @@ def predict_currency(image):
 
     input_dtype = input_details[0]["dtype"]
 
-    # Handle input type
+
+    # ==========================================
+    # Prepare Input
+    # ==========================================
+
     if input_dtype == np.uint8:
 
         scale, zero_point = input_details[0]["quantization"]
@@ -190,21 +193,32 @@ def predict_currency(image):
             input_dtype
         )
 
-    # Set input
+
+    # ==========================================
+    # Run Model
+    # ==========================================
+
     interpreter.set_tensor(
         input_index,
         img_array
     )
 
-    # Run model
     interpreter.invoke()
 
-    # Get prediction
+
+    # ==========================================
+    # Get Prediction
+    # ==========================================
+
     preds = interpreter.get_tensor(
         output_index
     )[0]
 
-    # Handle quantized output
+
+    # ==========================================
+    # Handle Quantized Output
+    # ==========================================
+
     output_dtype = output_details[0]["dtype"]
 
     if output_dtype == np.uint8:
@@ -216,8 +230,20 @@ def predict_currency(image):
             - zero_point
         ) * scale
 
-    # Get predicted class
-    pred_idx = np.argmax(preds)
+
+    # Convert to float
+    preds = preds.astype(
+        np.float32
+    )
+
+
+    # ==========================================
+    # Prediction Result
+    # ==========================================
+
+    pred_idx = np.argmax(
+        preds
+    )
 
     pred_class = class_names[
         pred_idx
@@ -226,6 +252,7 @@ def predict_currency(image):
     confidence = float(
         preds[pred_idx]
     )
+
 
     return (
         pred_class,
@@ -299,7 +326,7 @@ with tab_camera:
 
 
 # ==========================================
-# Prediction
+# Display + Prediction
 # ==========================================
 
 if image_source is not None:
@@ -308,11 +335,18 @@ if image_source is not None:
         image_source
     ).convert("RGB")
 
+
+    # Display Image
     st.image(
         image,
         caption="Selected image",
         use_container_width=True
     )
+
+
+    # ==========================================
+    # Predict Button
+    # ==========================================
 
     if st.button(
         "🔍 Predict Currency",
@@ -331,16 +365,17 @@ if image_source is not None:
                 image
             )
 
-        # ==================================
+
+        # ==========================================
         # Result
-        # ==================================
+        # ==========================================
 
         st.markdown(
             f"""
             <div class="result-box">
 
                 <div class="result-label">
-                    {pred_class}
+                    💵 {pred_class}
                 </div>
 
                 <div class="result-confidence">
@@ -352,11 +387,12 @@ if image_source is not None:
             unsafe_allow_html=True,
         )
 
-        st.write("")
 
-        # ==================================
+        # ==========================================
         # Probability Chart
-        # ==================================
+        # ==========================================
+
+        st.write("")
 
         st.subheader(
             "Prediction Breakdown"
@@ -372,3 +408,37 @@ if image_source is not None:
         st.bar_chart(
             probs_dict
         )
+
+
+        # ==========================================
+        # All Predictions
+        # ==========================================
+
+        st.subheader(
+            "All Predictions"
+        )
+
+        sorted_results = sorted(
+            probs_dict.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+        for currency, probability in sorted_results:
+
+            st.write(
+                f"**{currency}:** "
+                f"{probability:.2%}"
+            )
+
+
+# ==========================================
+# Footer
+# ==========================================
+
+st.divider()
+
+st.caption(
+    "Bahraini Currency Classification using CNN"
+)
+```
