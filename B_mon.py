@@ -1,21 +1,27 @@
-import json
-import numpy as np
+```python
 import streamlit as st
-import tensorflow as tf
+import numpy as np
 from PIL import Image
+import json
+import os
+
+# TFLite runtime
+from tflite_runtime.interpreter import Interpreter
+
 
 # ==========================================
-# 1. Page Settings
+# Page Settings
 # ==========================================
 
 st.set_page_config(
     page_title="Bahraini Currency Classifier",
     page_icon="💵",
-    layout="centered"
+    layout="centered",
 )
 
+
 # ==========================================
-# 2. File Paths
+# File Paths
 # ==========================================
 
 MODEL_PATH = "bahraini_currency_model.tflite"
@@ -23,56 +29,109 @@ CLASS_NAMES_PATH = "class_names.json"
 
 IMG_SIZE = (224, 224)
 
+
 # ==========================================
-# 3. Load TFLite Model
+# Custom CSS
+# ==========================================
+
+st.markdown(
+    """
+    <style>
+
+    .main-title {
+        text-align: center;
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+    }
+
+    .subtitle {
+        text-align: center;
+        color: #6b7280;
+        margin-bottom: 1.5rem;
+    }
+
+    .result-box {
+        background-color: #f0f9f4;
+        border: 1px solid #bbf7d0;
+        border-radius: 12px;
+        padding: 1.2rem 1.5rem;
+        text-align: center;
+        margin-top: 1rem;
+    }
+
+    .result-label {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #15803d;
+    }
+
+    .result-confidence {
+        color: #374151;
+        font-size: 1rem;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ==========================================
+# Load TFLite Model
 # ==========================================
 
 @st.cache_resource
-def load_model():
+def load_currency_model():
 
-    interpreter = tf.lite.Interpreter(
+    interpreter = Interpreter(
         model_path=MODEL_PATH
     )
 
     interpreter.allocate_tensors()
 
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
-
-    return interpreter, input_details, output_details
+    return interpreter
 
 
 # ==========================================
-# 4. Load Class Names
+# Load Class Names
 # ==========================================
 
 @st.cache_data
 def load_class_names():
 
-    with open(
-        CLASS_NAMES_PATH,
-        "r",
-        encoding="utf-8"
-    ) as file:
+    if os.path.exists(CLASS_NAMES_PATH):
 
-        class_names = json.load(file)
+        with open(
+            CLASS_NAMES_PATH,
+            "r",
+            encoding="utf-8"
+        ) as f:
 
-    return class_names
+            return json.load(f)
+
+    return [
+        "0.5_BHD",
+        "1_BHD",
+        "5_BHD",
+        "10_BHD",
+        "20_BHD"
+    ]
 
 
 # ==========================================
-# 5. Load Everything
+# Load Model + Classes
 # ==========================================
 
 try:
 
-    interpreter, input_details, output_details = load_model()
+    interpreter = load_currency_model()
     class_names = load_class_names()
 
 except Exception as e:
 
     st.error(
-        "Error loading the model or class names."
+        "Error loading the model."
     )
 
     st.write(e)
@@ -81,7 +140,7 @@ except Exception as e:
 
 
 # ==========================================
-# 6. Prediction Function
+# Prediction Function
 # ==========================================
 
 def predict_currency(image):
@@ -89,227 +148,229 @@ def predict_currency(image):
     # Convert image to RGB
     image = image.convert("RGB")
 
-    # Resize to the same size used during training
+    # Resize
     image = image.resize(IMG_SIZE)
 
-    # Convert image to NumPy array
-    image_array = np.array(
+    # Convert to NumPy
+    img_array = np.array(
         image,
         dtype=np.float32
     )
 
     # Add batch dimension
-    image_array = np.expand_dims(
-        image_array,
+    img_array = np.expand_dims(
+        img_array,
         axis=0
     )
 
-    # Get input information
+    # Get input details
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+
     input_index = input_details[0]["index"]
+    output_index = output_details[0]["index"]
+
     input_dtype = input_details[0]["dtype"]
 
-    # Handle quantized models if needed
+    # Handle input type
     if input_dtype == np.uint8:
 
-        input_scale, input_zero_point = input_details[0]["quantization"]
+        scale, zero_point = input_details[0]["quantization"]
 
-        image_array = (
-            image_array / input_scale
-        ) + input_zero_point
+        img_array = (
+            img_array / scale
+        ) + zero_point
 
-        image_array = image_array.astype(
+        img_array = img_array.astype(
             np.uint8
         )
 
     else:
 
-        image_array = image_array.astype(
+        img_array = img_array.astype(
             input_dtype
         )
 
-    # Set input tensor
+    # Set input
     interpreter.set_tensor(
         input_index,
-        image_array
+        img_array
     )
 
-    # Run prediction
+    # Run model
     interpreter.invoke()
 
-    # Get output
-    output_index = output_details[0]["index"]
-
-    probabilities = interpreter.get_tensor(
+    # Get prediction
+    preds = interpreter.get_tensor(
         output_index
     )[0]
 
-    # Handle quantized output if needed
+    # Handle quantized output
     output_dtype = output_details[0]["dtype"]
 
     if output_dtype == np.uint8:
 
-        output_scale, output_zero_point = output_details[0]["quantization"]
+        scale, zero_point = output_details[0]["quantization"]
 
-        probabilities = (
-            probabilities.astype(np.float32)
-            - output_zero_point
-        ) * output_scale
-
-    # Make sure probabilities are float
-    probabilities = probabilities.astype(
-        np.float32
-    )
+        preds = (
+            preds.astype(np.float32)
+            - zero_point
+        ) * scale
 
     # Get predicted class
-    predicted_index = np.argmax(
-        probabilities
+    pred_idx = np.argmax(preds)
+
+    pred_class = class_names[
+        pred_idx
+    ]
+
+    confidence = float(
+        preds[pred_idx]
     )
-
-    predicted_class = class_names[
-        predicted_index
-    ]
-
-    # Get confidence
-    confidence = probabilities[
-        predicted_index
-    ]
 
     return (
-        predicted_class,
+        pred_class,
         confidence,
-        probabilities
+        preds
     )
 
 
 # ==========================================
-# 7. Title
+# Title
 # ==========================================
 
-st.title(
-    "💵 Bahraini Currency Classifier"
+st.markdown(
+    '<div class="main-title">💵 Bahraini Currency Classifier</div>',
+    unsafe_allow_html=True
 )
 
-st.write(
-    "Upload an image of a Bahraini currency note "
-    "and the CNN model will predict its value."
+st.markdown(
+    '<div class="subtitle">Upload a photo or use your camera to identify a Bahraini banknote</div>',
+    unsafe_allow_html=True
 )
 
 
 # ==========================================
-# 8. Image Upload
+# Upload / Camera Tabs
 # ==========================================
 
-uploaded_file = st.file_uploader(
-    "Upload Currency Image",
-    type=[
-        "jpg",
-        "jpeg",
-        "png"
+tab_upload, tab_camera = st.tabs(
+    [
+        "📁 Upload Image",
+        "📷 Use Camera"
     ]
 )
 
+image_source = None
+
 
 # ==========================================
-# 9. Prediction
+# Upload Image
 # ==========================================
 
-if uploaded_file is not None:
+with tab_upload:
 
-    # Open image
-    image = Image.open(
-        uploaded_file
+    uploaded_file = st.file_uploader(
+        "Choose an image",
+        type=[
+            "jpg",
+            "jpeg",
+            "png"
+        ]
     )
 
-    # Display image
+    if uploaded_file is not None:
+
+        image_source = uploaded_file
+
+
+# ==========================================
+# Camera
+# ==========================================
+
+with tab_camera:
+
+    camera_file = st.camera_input(
+        "Take a photo of the banknote"
+    )
+
+    if camera_file is not None:
+
+        image_source = camera_file
+
+
+# ==========================================
+# Prediction
+# ==========================================
+
+if image_source is not None:
+
+    image = Image.open(
+        image_source
+    ).convert("RGB")
+
     st.image(
         image,
-        caption="Uploaded Currency",
+        caption="Selected image",
         use_container_width=True
     )
 
-    # Predict button
     if st.button(
         "🔍 Predict Currency",
         use_container_width=True
     ):
 
         with st.spinner(
-            "Analyzing the image..."
+            "Classifying..."
         ):
 
             (
-                predicted_class,
+                pred_class,
                 confidence,
-                probabilities
+                preds
             ) = predict_currency(
                 image
             )
 
         # ==================================
-        # Prediction Result
+        # Result
         # ==================================
 
-        st.success(
-            f"Predicted Currency: {predicted_class} BHD"
+        st.markdown(
+            f"""
+            <div class="result-box">
+
+                <div class="result-label">
+                    {pred_class}
+                </div>
+
+                <div class="result-confidence">
+                    Confidence: {confidence:.2%}
+                </div>
+
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-        st.metric(
-            "Confidence",
-            f"{confidence:.2%}"
-        )
+        st.write("")
 
         # ==================================
-        # Probability Results
+        # Probability Chart
         # ==================================
 
         st.subheader(
-            "Prediction Probabilities"
+            "Prediction Breakdown"
         )
 
-        probability_data = {}
-
-        for i in range(
-            len(class_names)
-        ):
-
-            probability_data[
-                class_names[i]
-            ] = float(
-                probabilities[i]
+        probs_dict = dict(
+            zip(
+                class_names,
+                preds
             )
+        )
 
         st.bar_chart(
-            probability_data
+            probs_dict
         )
-
-        # ==================================
-        # Detailed Results
-        # ==================================
-
-        st.subheader(
-            "All Predictions"
-        )
-
-        sorted_results = sorted(
-            probability_data.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
-
-        for currency, probability in sorted_results:
-
-            st.write(
-                f"**{currency} BHD:** "
-                f"{probability:.2%}"
-            )
-
-
-# ==========================================
-# 10. Footer
-# ==========================================
-
-st.divider()
-
-st.caption(
-    "Bahraini Currency Classification using CNN"
-)
+```
