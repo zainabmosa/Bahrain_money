@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import numpy as np
 import tensorflow as tf
@@ -441,4 +440,3 @@ st.divider()
 st.caption(
     "Bahraini Currency Classification using CNN"
 )
-```
