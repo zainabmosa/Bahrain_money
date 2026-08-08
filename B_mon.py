@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import numpy as np
 from PIL import Image
@@ -373,4 +372,3 @@ if image_source is not None:
         st.bar_chart(
             probs_dict
         )
-```
