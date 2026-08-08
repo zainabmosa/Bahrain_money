@@ -7,38 +7,33 @@ import tensorflow as tf
 from PIL import Image
 
 
-# ---------------------------------
-# Page Settings
-# ---------------------------------
+# ==========================================
+# 1. Page Settings
+# ==========================================
 
 st.set_page_config(
-    page_title="Bahraini Currency Recognition",
+    page_title="Bahraini Currency Classifier",
     page_icon="💵",
     layout="centered"
 )
 
 
-# ---------------------------------
-# File Paths
-# ---------------------------------
+# ==========================================
+# 2. File Paths
+# ==========================================
 
-MODEL_PATH = Path("bahraini_currency_model.keras")
-CLASS_NAMES_PATH = Path("class_names.json")
+MODEL_PATH = "bahraini_currency_model.keras"
+CLASS_NAMES_PATH = "class_names.json"
 
 IMG_SIZE = (224, 224)
 
 
-# ---------------------------------
-# Load Model
-# ---------------------------------
+# ==========================================
+# 3. Load Model
+# ==========================================
 
 @st.cache_resource
-def load_currency_model():
-
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError(
-            "bahraini_currency_model.keras was not found."
-        )
+def load_model():
 
     model = tf.keras.models.load_model(
         MODEL_PATH
@@ -47,17 +42,12 @@ def load_currency_model():
     return model
 
 
-# ---------------------------------
-# Load Class Names
-# ---------------------------------
+# ==========================================
+# 4. Load Class Names
+# ==========================================
 
 @st.cache_data
 def load_class_names():
-
-    if not CLASS_NAMES_PATH.exists():
-        raise FileNotFoundError(
-            "class_names.json was not found."
-        )
 
     with open(
         CLASS_NAMES_PATH,
@@ -70,66 +60,69 @@ def load_class_names():
     return class_names
 
 
-# ---------------------------------
-# Try Loading Files
-# ---------------------------------
+# ==========================================
+# 5. Load Everything
+# ==========================================
 
 try:
 
-    model = load_currency_model()
+    model = load_model()
     class_names = load_class_names()
 
-except Exception as error:
+except Exception as e:
 
     st.error(
-        "Could not load the model or class names."
+        "Error loading the model or class names."
     )
 
-    st.code(
-        str(error)
-    )
+    st.write(e)
 
     st.stop()
 
 
-# ---------------------------------
-# Prediction Function
-# ---------------------------------
+# ==========================================
+# 6. Prediction Function
+# ==========================================
 
 def predict_currency(image):
 
+    # Convert image to RGB
     image = image.convert("RGB")
 
-    resized_image = image.resize(
-        IMG_SIZE
-    )
+    # Resize to the same size used during training
+    image = image.resize(IMG_SIZE)
 
+    # Convert image to NumPy array
     image_array = np.array(
-        resized_image,
+        image,
         dtype=np.float32
     )
 
+    # Add batch dimension
     image_array = np.expand_dims(
         image_array,
         axis=0
     )
 
+    # Prediction
     probabilities = model.predict(
         image_array,
         verbose=0
     )[0]
 
-    predicted_index = int(
-        np.argmax(probabilities)
+    # Get predicted class
+    predicted_index = np.argmax(
+        probabilities
     )
 
     predicted_class = class_names[
         predicted_index
     ]
 
-    confidence = float(
-        probabilities[predicted_index]
-    )
+    # Get confidence
+    confidence = probabilities[
+        predicted_index
+    ]
 
     return (
         predicted_class,
@@ -138,85 +131,57 @@ def predict_currency(image):
     )
 
 
-# ---------------------------------
-# App Title
-# ---------------------------------
+# ==========================================
+# 7. Title
+# ==========================================
 
 st.title(
-    "💵 Bahraini Currency Recognition"
+    "💵 Bahraini Currency Classifier"
 )
 
 st.write(
-    "Upload a photo or use the camera to identify the Bahraini currency."
+    "Upload an image of a Bahraini currency note "
+    "and the CNN model will predict its value."
 )
 
 
-# ---------------------------------
-# Choose Image Source
-# ---------------------------------
+# ==========================================
+# 8. Image Upload
+# ==========================================
 
-input_method = st.radio(
-    "Choose image source:",
-    [
-        "Upload Image",
-        "Use Camera"
+uploaded_file = st.file_uploader(
+    "Upload Currency Image",
+    type=[
+        "jpg",
+        "jpeg",
+        "png"
     ]
 )
 
 
-selected_file = None
+# ==========================================
+# 9. Prediction
+# ==========================================
 
+if uploaded_file is not None:
 
-# ---------------------------------
-# Upload Image
-# ---------------------------------
-
-if input_method == "Upload Image":
-
-    selected_file = st.file_uploader(
-        "Upload a currency image",
-        type=[
-            "jpg",
-            "jpeg",
-            "png"
-        ]
-    )
-
-
-# ---------------------------------
-# Camera
-# ---------------------------------
-
-else:
-
-    selected_file = st.camera_input(
-        "Take a photo of the currency"
-    )
-
-
-# ---------------------------------
-# Show Image and Prediction
-# ---------------------------------
-
-if selected_file is not None:
-
+    # Open image
     image = Image.open(
-        selected_file
+        uploaded_file
     )
 
+    # Display image
     st.image(
         image,
-        caption="Selected Image",
+        caption="Uploaded Currency",
         use_container_width=True
     )
 
-    predict_button = st.button(
-        "Predict Currency",
-        type="primary",
+    # Predict button
+    if st.button(
+        "🔍 Predict Currency",
         use_container_width=True
-    )
-
-    if predict_button:
+    ):
 
         with st.spinner(
             "Analyzing the image..."
@@ -230,69 +195,73 @@ if selected_file is not None:
                 image
             )
 
+        # ==================================
+        # Prediction Result
+        # ==================================
 
         st.success(
-            f"Prediction: {predicted_class} BHD"
+            f"Predicted Currency: {predicted_class} BHD"
         )
-
 
         st.metric(
-            label="Confidence",
-            value=f"{confidence:.2%}"
+            "Confidence",
+            f"{confidence:.2%}"
         )
 
 
-        # ---------------------------------
-        # Prediction Probabilities
-        # ---------------------------------
+        # ==================================
+        # Probability Results
+        # ==================================
 
         st.subheader(
             "Prediction Probabilities"
         )
 
-        probability_data = {
-            class_names[index]:
-            float(probabilities[index])
+        probability_data = {}
 
-            for index in range(
-                len(class_names)
+        for i in range(
+            len(class_names)
+        ):
+
+            probability_data[
+                class_names[i]
+            ] = float(
+                probabilities[i]
             )
-        }
-
 
         st.bar_chart(
             probability_data
         )
 
 
-        # ---------------------------------
-        # All Results
-        # ---------------------------------
+        # ==================================
+        # Detailed Results
+        # ==================================
 
         st.subheader(
-            "All Results"
+            "All Predictions"
         )
 
         sorted_results = sorted(
             probability_data.items(),
-            key=lambda item: item[1],
+            key=lambda x: x[1],
             reverse=True
         )
 
-        for class_name, probability in sorted_results:
+        for currency, probability in sorted_results:
 
             st.write(
-                f"**{class_name} BHD:** "
+                f"**{currency} BHD:** "
                 f"{probability:.2%}"
             )
 
 
-# ---------------------------------
-# Footer
-# ---------------------------------
+# ==========================================
+# 10. Footer
+# ==========================================
 
 st.divider()
 
 st.caption(
-    "Deep Learning Project — Bahraini Currency Classification"
+    "Bahraini Currency Classification using CNN"
 )
