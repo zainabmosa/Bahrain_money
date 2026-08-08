@@ -313,4 +313,3 @@ st.divider()
 st.caption(
     "Bahraini Currency Classification using CNN"
 )
-```
