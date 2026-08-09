@@ -6,30 +6,14 @@ import json
 import os
 
 
-# ==========================================
-# Page Settings
-# ==========================================
+st.set_page_config(page_title="Bahraini Banknote Detection Using Deep Learning",page_icon="🇧🇭",layout="centered",)
 
-st.set_page_config(
-    page_title="Bahraini Currency Classifier",
-    page_icon="💵",
-    layout="centered",
-)
-
-
-# ==========================================
-# File Paths
-# ==========================================
 
 MODEL_PATH = "bahraini_currency_model.tflite"
 CLASS_NAMES_PATH = "class_names.json"
 
 IMG_SIZE = (224, 224)
 
-
-# ==========================================
-# Custom CSS
-# ==========================================
 
 st.markdown(
     """
@@ -74,51 +58,25 @@ st.markdown(
 )
 
 
-# ==========================================
-# Load TFLite Model
-# ==========================================
-
 @st.cache_resource
 def load_currency_model():
 
-    interpreter = tf.lite.Interpreter(
-        model_path=MODEL_PATH
-    )
+    interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
 
     interpreter.allocate_tensors()
 
     return interpreter
-
-
-# ==========================================
-# Load Class Names
-# ==========================================
 
 @st.cache_data
 def load_class_names():
 
     if os.path.exists(CLASS_NAMES_PATH):
 
-        with open(
-            CLASS_NAMES_PATH,
-            "r",
-            encoding="utf-8"
-        ) as f:
+        with open(CLASS_NAMES_PATH,"r",encoding="utf-8") as f:
 
             return json.load(f)
 
-    return [
-        "0.5_BHD",
-        "1_BHD",
-        "5_BHD",
-        "10_BHD",
-        "20_BHD"
-    ]
-
-
-# ==========================================
-# Load Model
-# ==========================================
+    return ["0.5_BHD","1_BHD","5_BHD","10_BHD","20_BHD"]
 
 try:
 
@@ -127,40 +85,23 @@ try:
 
 except Exception as e:
 
-    st.error(
-        "Error loading the model or class names."
-    )
+    st.error("Error loading the model or class names.")
 
     st.write(e)
 
     st.stop()
 
 
-# ==========================================
-# Prediction Function
-# ==========================================
-
 def predict_currency(image):
 
-    # Convert image to RGB
     image = image.convert("RGB")
 
-    # Resize image
     image = image.resize(IMG_SIZE)
 
-    # Convert image to NumPy array
-    img_array = np.array(
-        image,
-        dtype=np.float32
-    )
+    img_array = np.array(image,dtype=np.float32)
 
-    # Add batch dimension
-    img_array = np.expand_dims(
-        img_array,
-        axis=0
-    )
+    img_array = np.expand_dims(img_array,axis=0)
 
-    # Get model information
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
 
@@ -169,54 +110,24 @@ def predict_currency(image):
 
     input_dtype = input_details[0]["dtype"]
 
-
-    # ==========================================
-    # Prepare Input
-    # ==========================================
-
     if input_dtype == np.uint8:
 
         scale, zero_point = input_details[0]["quantization"]
 
-        img_array = (
-            img_array / scale
-        ) + zero_point
+        img_array = (img_array / scale) + zero_point
 
-        img_array = img_array.astype(
-            np.uint8
-        )
+        img_array = img_array.astype(np.uint8)
 
     else:
 
-        img_array = img_array.astype(
-            input_dtype
-        )
+        img_array = img_array.astype(input_dtype)
 
-
-    # ==========================================
-    # Run Model
-    # ==========================================
-
-    interpreter.set_tensor(
-        input_index,
-        img_array
-    )
+    interpreter.set_tensor(input_index,img_array)
 
     interpreter.invoke()
 
 
-    # ==========================================
-    # Get Prediction
-    # ==========================================
-
-    preds = interpreter.get_tensor(
-        output_index
-    )[0]
-
-
-    # ==========================================
-    # Handle Quantized Output
-    # ==========================================
+    preds = interpreter.get_tensor(output_index)[0]
 
     output_dtype = output_details[0]["dtype"]
 
@@ -224,150 +135,66 @@ def predict_currency(image):
 
         scale, zero_point = output_details[0]["quantization"]
 
-        preds = (
-            preds.astype(np.float32)
-            - zero_point
-        ) * scale
+        preds = (preds.astype(np.float32)- zero_point) * scale
 
 
-    # Convert to float
-    preds = preds.astype(
-        np.float32
-    )
+    preds = preds.astype(np.float32)
 
 
-    # ==========================================
-    # Prediction Result
-    # ==========================================
+    pred_idx = np.argmax(preds)
 
-    pred_idx = np.argmax(
-        preds
-    )
+    pred_class = class_names[pred_idx]
 
-    pred_class = class_names[
-        pred_idx
-    ]
-
-    confidence = float(
-        preds[pred_idx]
-    )
+    confidence = float(preds[pred_idx])
 
 
-    return (
-        pred_class,
-        confidence,
-        preds
-    )
+    return (pred_class,confidence,preds)
 
 
-# ==========================================
-# Title
-# ==========================================
+st.markdown('<div class="main-title">💵 Bahraini Currency Classifier</div>',unsafe_allow_html=True)
 
-st.markdown(
-    '<div class="main-title">💵 Bahraini Currency Classifier</div>',
-    unsafe_allow_html=True
-)
-
-st.markdown(
-    '<div class="subtitle">Upload a photo or use your camera to identify a Bahraini banknote</div>',
-    unsafe_allow_html=True
-)
+st.markdown('<div class="subtitle">Upload a photo or use your camera to identify a Bahraini banknote</div>',unsafe_allow_html=True)
 
 
-# ==========================================
-# Upload / Camera Tabs
-# ==========================================
-
-tab_upload, tab_camera = st.tabs(
-    [
-        "📁 Upload Image",
-        "📷 Use Camera"
-    ]
-)
+tab_upload, tab_camera = st.tabs(["📁 Upload Image","📷 Use Camera"])
 
 image_source = None
 
 
-# ==========================================
-# Upload Image
-# ==========================================
-
 with tab_upload:
 
-    uploaded_file = st.file_uploader(
-        "Choose an image",
-        type=[
-            "jpg",
-            "jpeg",
-            "png"
-        ]
-    )
+    uploaded_file = st.file_uploader("Choose an image",type=["jpg","jpeg","png"])
 
     if uploaded_file is not None:
 
         image_source = uploaded_file
 
 
-# ==========================================
-# Camera
-# ==========================================
-
 with tab_camera:
 
-    camera_file = st.camera_input(
-        "Take a photo of the banknote"
-    )
+    camera_file = st.camera_input("Take a photo of the banknote")
 
     if camera_file is not None:
 
         image_source = camera_file
 
 
-# ==========================================
-# Display + Prediction
-# ==========================================
+
 
 if image_source is not None:
 
-    image = Image.open(
-        image_source
-    ).convert("RGB")
+    image = Image.open(image_source).convert("RGB")
 
 
-    # Display Image
-    st.image(
-        image,
-        caption="Selected image",
-        use_container_width=True
-    )
+    st.image(image,caption="Selected image",use_container_width=True)
 
 
-    # ==========================================
-    # Predict Button
-    # ==========================================
+    if st.button("🔍 Predict Currency",use_container_width=True):
 
-    if st.button(
-        "🔍 Predict Currency",
-        use_container_width=True
-    ):
+        with st.spinner("Classifying..."):
 
-        with st.spinner(
-            "Classifying..."
-        ):
+            (pred_class,confidence,preds) = predict_currency(image)
 
-            (
-                pred_class,
-                confidence,
-                preds
-            ) = predict_currency(
-                image
-            )
-
-
-        # ==========================================
-        # Result
-        # ==========================================
 
         st.markdown(
             f"""
@@ -387,56 +214,26 @@ if image_source is not None:
         )
 
 
-        # ==========================================
-        # Probability Chart
-        # ==========================================
+    
 
         st.write("")
 
-        st.subheader(
-            "Prediction Breakdown"
-        )
+        st.subheader("Prediction Breakdown")
 
-        probs_dict = dict(
-            zip(
-                class_names,
-                preds
-            )
-        )
+        probs_dict = dict(zip(class_names,preds))
 
-        st.bar_chart(
-            probs_dict
-        )
+        st.bar_chart(probs_dict)
 
 
-        # ==========================================
-        # All Predictions
-        # ==========================================
+        st.subheader("All Predictions")
 
-        st.subheader(
-            "All Predictions"
-        )
-
-        sorted_results = sorted(
-            probs_dict.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        sorted_results = sorted(probs_dict.items(),key=lambda x: x[1],reverse=True)
 
         for currency, probability in sorted_results:
 
-            st.write(
-                f"**{currency}:** "
-                f"{probability:.2%}"
-            )
+            st.write(f"**{currency}:** "f"{probability:.2%}")
 
-
-# ==========================================
-# Footer
-# ==========================================
 
 st.divider()
 
-st.caption(
-    "Bahraini Currency Classification using CNN"
-)
+st.caption("Bahraini Currency Classification using CNN")
