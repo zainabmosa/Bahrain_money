@@ -1,4 +1,3 @@
-# Bahrain_money
 # 🇧🇭 Bahraini Currency Recognition
 
 ## 📌 Project Description
