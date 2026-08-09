@@ -67,22 +67,6 @@ Bahraini-Currency-Recognition/
 * PIL
 * JSON
 
-## 🚀 How to Run
-
-Install the required libraries:
-
-```bash
-pip install -r requirements.txt
-```
-
-Run the Streamlit application:
-
-```bash
-streamlit run B_mon.py
-```
-
-The application will open in your browser.
-
 ## 👥 Team
 
 This project was developed collaboratively by the project team using GitHub for version control and collaboration.
