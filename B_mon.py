@@ -9,7 +9,7 @@ import os
 st.set_page_config(page_title="Bahraini Banknote Detection Using Deep Learning",page_icon="🇧🇭",layout="centered",)
 
 
-MODEL_PATH = "bahraini_currency_model.tflite"
+MODEL_PATH = "bahraini_currency_model.keras"
 CLASS_NAMES_PATH = "class_names.json"
 
 IMG_SIZE = (224, 224)
