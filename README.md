@@ -1,4 +1,4 @@
-# 🇧🇭 Bahraini Currency Recognition
+# 🇧🇭 Bahraini Banknote Detection Using Deep Learning
 
 ## 📌 Project Description
 
