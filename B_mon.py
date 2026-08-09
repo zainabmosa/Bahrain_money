@@ -196,8 +196,7 @@ if image_source is not None:
             (pred_class,confidence,preds) = predict_currency(image)
 
 
-        st.markdown(f"""<div class="result-label">{predicted_class}</div>""",unsafe_allow_html=True,)
-    
+        st.markdown(f"""<div class="result-label">{pred_class}</div>""", unsafe_allow_html=True,)    
 
         st.write("")
 
