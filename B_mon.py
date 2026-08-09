@@ -151,7 +151,7 @@ def predict_currency(image):
     return (pred_class,confidence,preds)
 
 
-st.markdown('<div class="main-title">💵 Bahraini Currency Classifier</div>',unsafe_allow_html=True)
+st.markdown('<div class="main-title"># 🇧🇭 Bahraini Banknote Classification Using Deep Learning</div>',unsafe_allow_html=True)
 
 st.markdown('<div class="subtitle">Upload a photo or use your camera to identify a Bahraini banknote</div>',unsafe_allow_html=True)
 
