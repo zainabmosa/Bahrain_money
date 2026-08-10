@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-from tensorflow.keras.models import load_model
+import tensorflow as tf
 from PIL import Image
 import json
 import os
@@ -54,7 +54,9 @@ st.markdown(
 
 @st.cache_resource
 def load_currency_model():
-    return load_model(MODEL_PATH)
+    interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
+    interpreter.allocate_tensors()
+    return interpreter
 
 
 @st.cache_resource
@@ -64,9 +66,12 @@ def load_class_names():
             return json.load(f)
     return ["0.5_BHD", "1_BHD", "5_BHD", "10_BHD", "20_BHD"]
 
-
-model = load_currency_model()
+interpreter = load_currency_model()
 class_names = load_class_names()
+
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
 
 st.markdown('<div class="main-title">🇧🇭 Bahraini Currency Classifier</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Upload a photo or use your camera to identify a Bahraini banknote</div>', unsafe_allow_html=True)
