@@ -76,7 +76,9 @@ def load_class_names():
 
             return json.load(f)
 
-    return ["0.5_BHD","1_BHD","5_BHD","10_BHD","20_BHD"]
+    #return ["0.5_BHD","1_BHD","5_BHD","10_BHD","20_BHD"]
+    return ["10BD", "1BD", "20BD", "500 Fils", "5BD"]
+    
 
 try:
 
@@ -99,6 +101,8 @@ def predict_currency(image):
     image = image.resize(IMG_SIZE)
 
     img_array = np.array(image,dtype=np.float32)
+    #####جديد
+    img_array = img_array / 255.0
 
     img_array = np.expand_dims(img_array,axis=0)
 
