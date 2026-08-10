@@ -101,7 +101,7 @@ image = image.convert("RGB")
 image = image.resize(IMG_SIZE)
 
 img_array = np.array(image,dtype=np.float32)
-#####جديد
+
 img_array = img_array / 255.0
 
 img_array = np.expand_dims(img_array,axis=0)
