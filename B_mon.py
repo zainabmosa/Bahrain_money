@@ -7,7 +7,7 @@ import os
 
 st.set_page_config(
     page_title="Bahraini Currency Classifier",
-    page_icon=":dollar:",
+    page_icon="💵",
     layout="centered",
 )
 
@@ -51,13 +51,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
 @st.cache_resource
 def load_currency_model():
     interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
     interpreter.allocate_tensors()
     return interpreter
-
 
 @st.cache_resource
 def load_class_names():
@@ -72,16 +70,27 @@ class_names = load_class_names()
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
+st.markdown(
+    "🇧🇭 Bahraini Currency Classifier",
+    unsafe_allow_html=True,
+)
 
-st.markdown('<div class="main-title">🇧🇭 Bahraini Currency Classifier</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Upload a photo or use your camera to identify a Bahraini banknote</div>', unsafe_allow_html=True)
+st.markdown(
+    "Upload a photo or use your camera to identify a Bahraini banknote",
+    unsafe_allow_html=True,
+)
 
-tab_upload, tab_camera = st.tabs([":file_folder: Upload Image", ":camera: Use Camera"])
+tab_upload, tab_camera = st.tabs(
+    ["📁 Upload Image", "📷 Use Camera"]
+)
 
 image_source = None
 
 with tab_upload:
-    uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader(
+        "Choose an image",
+        type=["jpg", "jpeg", "png"]
+    )
     if uploaded_file is not None:
         image_source = uploaded_file
 
@@ -92,14 +101,28 @@ with tab_camera:
 
 if image_source is not None:
     image = Image.open(image_source).convert("RGB")
-    st.image(image, caption="Selected image", use_container_width=True)
+
+    st.image(
+        image,
+        caption="Selected image",
+        use_container_width=True
+    )
 
     img_resized = image.resize(IMG_SIZE)
     img_array = np.array(img_resized)
     img_array = np.expand_dims(img_array, axis=0)
 
     with st.spinner("Classifying..."):
-        preds = model.predict(img_array)[0]
+        interpreter.set_tensor(
+            input_details[0]["index"],
+            img_array.astype(input_details[0]["dtype"])
+        )
+
+        interpreter.invoke()
+
+        preds = interpreter.get_tensor(
+            output_details[0]["index"]
+        )[0]
 
     pred_idx = np.argmax(preds)
     pred_class = class_names[pred_idx]
@@ -109,7 +132,9 @@ if image_source is not None:
         f"""
         <div class="result-box">
             <div class="result-label">{pred_class}</div>
-            <div class="result-confidence">Confidence: {confidence:.2f}%</div>
+            <div class="result-confidence">
+                Confidence: {confidence:.2f}%
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -117,5 +142,6 @@ if image_source is not None:
 
     st.write("")
     st.caption("Prediction breakdown across all classes")
+
     probs_dict = dict(zip(class_names, preds))
     st.bar_chart(probs_dict)
