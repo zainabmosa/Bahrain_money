@@ -68,7 +68,7 @@ def load_class_names():
 model = load_currency_model()
 class_names = load_class_names()
 
-st.markdown('<div class="main-title">🇧🇭: Bahraini Currency Classifier</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">🇧🇭 Bahraini Currency Classifier</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Upload a photo or use your camera to identify a Bahraini banknote</div>', unsafe_allow_html=True)
 
 tab_upload, tab_camera = st.tabs([":file_folder: Upload Image", ":camera: Use Camera"])
