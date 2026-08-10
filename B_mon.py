@@ -5,19 +5,17 @@ from PIL import Image
 import json
 import os
 
-st.set\_page\_config(page\_title="Bahraini Banknote Detection Using Deep Learning",page\_icon="🇧🇭",layout="centered",)
+st.set_page_config(page_title="Bahraini Banknote Detection Using Deep Learning",page_icon="🇧🇭",layout="centered",)
 
-MODEL\_PATH = "bahraini\_currency\_model.tflite"
-\#bahraini\_currency\_model.keras
-CLASS\_NAMES\_PATH = "class\_names.json"
+MODEL_PATH = "bahraini_currency_model.tflite"
+#bahraini_currency_model.keras
+CLASS_NAMES_PATH = "class_names.json"
 
-IMG\_SIZE = (224, 224)
+IMG_SIZE = (224, 224)
 
 st.markdown(
 """
 
-
-```
 .main-title {
     text-align: center;
     font-size: 2.2rem;
@@ -54,25 +52,23 @@ st.markdown(
 </style>
 """,
 unsafe_allow_html=True,
-```
+
 
 )
 
-@st.cache\_resource
-def load\_currency\_model():
+@st.cache_resource
+def load_currency_model():
 
-```
 interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
 
 interpreter.allocate_tensors()
 
 return interpreter
-```
 
-@st.cache\_data
-def load\_class\_names():
 
-```
+@st.cache_data
+def load_class_names():
+
 if os.path.exists(CLASS_NAMES_PATH):
 
     with open(CLASS_NAMES_PATH,"r",encoding="utf-8") as f:
@@ -81,28 +77,25 @@ if os.path.exists(CLASS_NAMES_PATH):
 
 #return ["0.5_BHD","1_BHD","5_BHD","10_BHD","20_BHD"]
 return ["10BD", "1BD", "20BD", "500 Fils", "5BD"]
-```
+
 
 try:
 
-```
 interpreter = load_currency_model()
 class_names = load_class_names()
-```
+
 
 except Exception as e:
 
-```
 st.error("Error loading the model or class names.")
 
 st.write(e)
 
 st.stop()
-```
 
-def predict\_currency(image):
 
-```
+def predict_currency(image):
+
 image = image.convert("RGB")
 
 image = image.resize(IMG_SIZE)
@@ -160,41 +153,36 @@ confidence = float(preds[pred_idx])
 
 
 return (pred_class,confidence,preds)
-```
 
-st.markdown('🇧🇭 Bahraini Banknote Classification',unsafe\_allow\_html=True)
 
-st.markdown('Upload a photo or use your camera to identify a Bahraini banknote',unsafe\_allow\_html=True)
+st.markdown('🇧🇭 Bahraini Banknote Classification',unsafe_allow_html=True)
 
-tab\_upload, tab\_camera = st.tabs(["📂 Upload Image","📸 Use Camera"])
+st.markdown('Upload a photo or use your camera to identify a Bahraini banknote',unsafe_allow_html=True)
 
-image\_source = None
+tab_upload, tab_camera = st.tabs(["📂 Upload Image","📸 Use Camera"])
 
-with tab\_upload:
+image_source = None
 
-```
+with tab_upload:
+
 uploaded_file = st.file_uploader("Choose an image",type=["jpg","jpeg","png"])
 
 if uploaded_file is not None:
 
     image_source = uploaded_file
-```
 
-with tab\_camera:
 
-```
+with tab_camera:
+
 camera_file = st.camera_input("Take a photo of the banknote")
 
 if camera_file is not None:
 
     image_source = camera_file
-```
 
 
+if image_source is not None:
 
-if image\_source is not None:
-
-```
 image = Image.open(image_source).convert("RGB")
 
 
@@ -226,7 +214,7 @@ if st.button("🔍 Predict Currency",use_container_width=True):
     for currency, probability in sorted_results:
 
         st.write(f"**{currency}:** "f"{probability:.2%}")
-```
+
 
 st.divider()
 
