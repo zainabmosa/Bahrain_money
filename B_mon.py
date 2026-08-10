@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-from tflite_runtime.interpreter import Interpreterfrom PIL import Image
+import tensorflow as tf
 import json
 import os
 
@@ -57,7 +57,7 @@ st.markdown(
 
 @st.cache_resource
 def load_currency_model():
-    interpreter = Interpreter(model_path=MODEL_PATH)    
+    interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)    
     interpreter.allocate_tensors()
     return interpreter
 
