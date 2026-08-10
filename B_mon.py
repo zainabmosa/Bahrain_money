@@ -11,7 +11,7 @@ st.set_page_config(
     layout="centered",
 )
 
-MODEL_PATH = "bahraini_currency_model.keras"
+MODEL_PATH = "bahraini_currency_model.tflite"
 CLASS_NAMES_PATH = "class_names.json"
 IMG_SIZE = (224, 224)
 
